@@ -50,5 +50,3 @@ func PostRequest(url string, body []byte, headers ...HeaderPair) Request {
 		Headers: headers,
 	}
 }
-
-func QueryItem(itemType string)
