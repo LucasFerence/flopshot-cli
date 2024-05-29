@@ -10,6 +10,8 @@ import (
 	"github.com/99designs/keyring"
 )
 
+const ClientUrl = "http://localhost:5050"
+
 // Constants for keyring identifiers
 const keyringService = "flopshot"
 const loginTokenKey = "loginToken"
@@ -20,7 +22,7 @@ func openRing() (keyring.Keyring, error) {
 	})
 }
 
-type flopshotClient struct {
+type FlopshotClient struct {
 
 	// Underlying client for executing requests
 	HttpClient *http.Client
@@ -29,16 +31,16 @@ type flopshotClient struct {
 	Token string
 }
 
-func NewFlopshotClient() flopshotClient {
+func NewFlopshotClient() FlopshotClient {
 
-	client := flopshotClient{
+	client := FlopshotClient{
 		HttpClient: &http.Client{},
 	}
 
 	return client
 }
 
-func (client *flopshotClient) InitializeAuth(token string) {
+func (client *FlopshotClient) InitAuth(token string) {
 
 	ring, err := openRing()
 
@@ -60,7 +62,19 @@ func (client *flopshotClient) InitializeAuth(token string) {
 	client.Token = token
 }
 
-func (client *flopshotClient) IsAuthenticated() (bool, string) {
+func (client *FlopshotClient) RemoveAuth() {
+
+	ring, err := openRing()
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	ring.Remove(loginTokenKey)
+}
+
+func (client *FlopshotClient) IsAuthenticated() (bool, string) {
 
 	ring, err := openRing()
 	if err != nil {
@@ -79,36 +93,17 @@ func (client *flopshotClient) IsAuthenticated() (bool, string) {
 	return false, ""
 }
 
-func (client *flopshotClient) ExecuteRaw(req Request) (*BufferedResponse, error) {
-
-	var rawReq *http.Request
-	var err error
+func (client *FlopshotClient) Exec(req *http.Request) (*BufferedResponse, error) {
 
 	isAuth, token := client.IsAuthenticated()
 
+	// If authenticated, add headers for auth
 	if isAuth {
-		// If authenticated, add headers for auth
-		rawReq, err = req.build(
-			HeaderPair{
-				Key: "authorization",
-				Value: "Bearer" + token,
-			},
-			HeaderPair {
-				Key: "content-type",
-				Value: "application/json",
-			},
-		)
-	} else {
-		// Otherwise, just build it with no additional headers
-		rawReq, err = req.build()
+		req.Header.Add("content-type", "application/json")
+		req.Header.Add("authorization", "Bearer "+token)
 	}
 
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	resp, err := client.HttpClient.Do(rawReq)
+	resp, err := client.HttpClient.Do(req)
 
 	if err != nil {
 		fmt.Println(err)
@@ -133,9 +128,9 @@ func (client *flopshotClient) ExecuteRaw(req Request) (*BufferedResponse, error)
 	return bufferedResp, nil
 }
 
-func (client *flopshotClient) Execute(req Request, respType any) (*BufferedResponse, error) {
+func (client *FlopshotClient) ExecR(req *http.Request, respType any) (*BufferedResponse, error) {
 
-	bufResp, err := client.ExecuteRaw(req)
+	bufResp, err := client.Exec(req)
 
 	if err != nil {
 		fmt.Println(err)

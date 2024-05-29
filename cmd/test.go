@@ -6,6 +6,8 @@ package cmd
 import (
 	"fmt"
 
+	"flopshot.io/dev/cli/api"
+	"flopshot.io/dev/cli/edit"
 	"github.com/spf13/cobra"
 )
 
@@ -13,14 +15,26 @@ import (
 var testCmd = &cobra.Command{
 	Use:   "test",
 	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("test called")
+
+		resp := flopshotClient.RegisterIdReq(edit.UserType)
+
+		user := edit.User{
+			Id:    resp.Id,
+			Email: "test@gmail.com",
+			Name:  "Lucas Test",
+		}
+
+		flopshotClient.WriteData(edit.UserType, user)
+
+		listResp := api.ListResponse[edit.User]{}
+		flopshotClient.QueryData(
+			edit.UserType,
+			&listResp,
+			[]api.QueryParams{{K: "email", V: "ference.lucas@gmail.com"}},
+		)
+
+		fmt.Println(listResp)
 	},
 }
 
