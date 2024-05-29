@@ -19,6 +19,9 @@ const loginTokenKey = "loginToken"
 func openRing() (keyring.Keyring, error) {
 	return keyring.Open(keyring.Config{
 		ServiceName: keyringService,
+
+		// This will still prompt the user for allowance, but will remember the change
+		KeychainTrustApplication: true,
 	})
 }
 
