@@ -50,12 +50,14 @@ func (client *FlopshotClient) QueryData(dataType string, data any, query []Query
 		return err
 	}
 
-	q := req.URL.Query()
-	for _, v := range query {
-		q.Add(v.K, v.V)
-	}
+	if query != nil {
+		q := req.URL.Query()
+		for _, v := range query {
+			q.Add(v.K, v.V)
+		}
 
-	req.URL.RawQuery = q.Encode()
+		req.URL.RawQuery = q.Encode()
+	}
 
 	_, err = client.ExecR(req, &data)
 	return err
