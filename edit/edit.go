@@ -1,19 +1,37 @@
 package edit
 
 import (
+	"errors"
 	"reflect"
 )
 
-var allEditTypes = make(map[string]any)
+type EditType = any
 
-func FindType[T any](name string) T {
+var allEditTypes = make(map[string]EditType)
+
+func FindType[T EditType](name string) (*T, error) {
+
+	foundType := allEditTypes[name]
+
+	if foundType == nil {
+		return nil, errors.New("Unable to find type for " + name)
+	}
 
 	// This is supposed to copy and create a new instance of the object
 	val := reflect.New(reflect.TypeOf(allEditTypes[name]))
-	return val.Elem().Interface().(T)
+
+	cast := val.Elem().Interface().(T)
+	return &cast, nil
 }
 
-func RegisterType(name string, editType any) {
+func RegisterType(name string, editType EditType)  {
+
+	// Validate edit type
+	tType := reflect.TypeOf(editType)
+	if tType == nil || tType.Kind() != reflect.Struct {
+		panic("Cannot register non-struct type " + name)
+	}
+
 	allEditTypes[name] = editType
 }
 
@@ -21,9 +39,15 @@ type Field struct {
 	Name, Type string
 }
 
-func TypeFields(t any) []Field {
+func TypeFields(t *EditType) ([]Field, error) {
 
-	reflectFields := reflect.VisibleFields(reflect.TypeOf(t))
+	// Validate before reflecting
+	tType := reflect.TypeOf(*t)
+	if tType == nil || tType.Kind() != reflect.Struct {
+		return nil, errors.New("Type must be of struct to read fields.")
+	}
+
+	reflectFields := reflect.VisibleFields(tType)
 	fields := []Field{}
 
 	for _, rf := range reflectFields {
@@ -34,5 +58,5 @@ func TypeFields(t any) []Field {
 		})
 	}
 
-	return fields
+	return fields, nil
 }

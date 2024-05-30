@@ -1,6 +1,3 @@
-/*
-Copyright © 2024 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -20,12 +17,24 @@ var testCmd = &cobra.Command{
 		// This will be later passed through the command as an option/sub-command or something
 		const cmdTypeName = "user"
 
+		// Query for all users (could provide pagination in query params if we wanted to)
 		listResp := api.ListResponse[any]{}
-		flopshotClient.QueryData(cmdTypeName, &listResp, []api.QueryParams{{K: "p", V: "0"}})
+		flopshotClient.QueryData(cmdTypeName, &listResp, []api.QueryParams{})
 		fmt.Println(listResp)
 
-		editType := edit.FindType[any](cmdTypeName)
-		fields := edit.TypeFields(editType)
+		// Find the type based on the name identifier provided
+		// By getting the fields we can display the type in a form
+		editType, err := edit.FindType[any](cmdTypeName)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		fields, err := edit.TypeFields(editType)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 
 		for _, f := range fields {
 			fmt.Println(f)
