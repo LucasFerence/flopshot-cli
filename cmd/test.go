@@ -6,7 +6,6 @@ package cmd
 import (
 	"fmt"
 
-	"flopshot.io/dev/cli/api"
 	"flopshot.io/dev/cli/edit"
 	"github.com/spf13/cobra"
 )
@@ -17,24 +16,12 @@ var testCmd = &cobra.Command{
 	Short: "A brief description of your command",
 	Run: func(cmd *cobra.Command, args []string) {
 
-		resp := flopshotClient.RegisterIdReq(edit.UserType)
+		user := edit.FindType[edit.User]("user")
+		fields := edit.TypeFields(user)
 
-		user := edit.User{
-			Id:    resp.Id,
-			Email: "test@gmail.com",
-			Name:  "Lucas Test",
+		for _, f := range fields {
+			fmt.Println(f)
 		}
-
-		flopshotClient.WriteData(edit.UserType, user)
-
-		listResp := api.ListResponse[edit.User]{}
-		flopshotClient.QueryData(
-			edit.UserType,
-			&listResp,
-			[]api.QueryParams{{K: "email", V: "ference.lucas@gmail.com"}},
-		)
-
-		fmt.Println(listResp)
 	},
 }
 

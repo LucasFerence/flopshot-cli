@@ -7,3 +7,7 @@ type User struct {
 	Email string `json:"email"`
 	Name  string `json:"name"`
 }
+
+func init() {
+	RegisterType("user", User{})
+}
