@@ -26,7 +26,7 @@ func AllTypes() []string {
 	return keys
 }
 
-func FindType[T EditType](name string) (*T, error) {
+func GetType[T EditType](name string) (*T, error) {
 
 	foundType := allEditTypes[name]
 

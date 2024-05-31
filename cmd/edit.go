@@ -6,10 +6,10 @@ import (
 	"flopshot.io/dev/cli/api"
 	"flopshot.io/dev/cli/edit"
 	"github.com/manifoldco/promptui"
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
-	"github.com/mitchellh/mapstructure"
 )
 
 // editCmd represents the edit command
@@ -48,7 +48,6 @@ var editCmd = &cobra.Command{
 
 		// Get the raw selected type based on positioning of arguments
 		selection := allTypes[promptPos]
-		editType, _ := edit.FindType[edit.EditType](selection)
 
 		resp := api.ListResponse[any]{}
 		err = flopshotClient.QueryData(selection, &resp, []api.QueryParams{})
@@ -64,13 +63,27 @@ var editCmd = &cobra.Command{
 			return
 		}
 
-		// At this point we know there are items to render
-		for _, t := range resp.Items {
+		labels := make([]string, len(resp.Items))
+		queryObjects := make([]*edit.EditType, len(resp.Items))
 
-			// Decode any into the type that was returned
+		// At this point we know there are items to render
+		for i, t := range resp.Items {
+
+			editType, _ := edit.GetType[edit.EditType](selection)
+
+			// Copy values from the type returned into the edit type
 			mapstructure.Decode(t, editType)
-			fmt.Println((*editType).Label())
+
+			labels[i] = (*editType).Label()
+			queryObjects[i] = editType
 		}
+
+		prompt = promptui.Select{
+			Label: "Select Item",
+			Items: labels,
+		}
+		promptPos, _, _ = prompt.Run()
+		fmt.Println(*queryObjects[promptPos])
 	},
 }
 
