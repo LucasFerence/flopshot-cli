@@ -5,9 +5,26 @@ import (
 	"reflect"
 )
 
-type EditType = any
+type EditType interface {
+	Label() string
+}
+
+type ReferenceType struct {
+	Id   string `json:"_id"`
+	Type string `json:"_type"`
+}
 
 var allEditTypes = make(map[string]EditType)
+
+func AllTypes() []string {
+
+	keys := make([]string, 0, len(allEditTypes))
+	for k := range allEditTypes {
+		keys = append(keys, k)
+	}
+
+	return keys
+}
 
 func FindType[T EditType](name string) (*T, error) {
 
@@ -24,7 +41,7 @@ func FindType[T EditType](name string) (*T, error) {
 	return &cast, nil
 }
 
-func RegisterType(name string, editType EditType)  {
+func RegisterType(name string, editType EditType) {
 
 	// Validate edit type
 	tType := reflect.TypeOf(editType)

@@ -1,10 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-
-	"flopshot.io/dev/cli/api"
-	"flopshot.io/dev/cli/edit"
 	"github.com/spf13/cobra"
 )
 
@@ -14,34 +10,43 @@ var testCmd = &cobra.Command{
 	Short: "A brief description of your command",
 	Run: func(cmd *cobra.Command, args []string) {
 
-		// This will be later passed through the command as an option/sub-command or something
-		const cmdTypeName = "user"
+		// allTypes := edit.AllTypes()
+		// prompt := promptui.Select{
+		// 	Label: "Select Type",
+		// 	Items: allTypes,
+		// }
 
-		// Query for all users (could provide pagination in query params if we wanted to)
-		listResp := api.ListResponse[any]{}
-		flopshotClient.QueryData(cmdTypeName, &listResp, []api.QueryParams{})
-		fmt.Println(listResp)
+		// _, promptRes, err := prompt.Run()
+		// fmt.Println(promptRes)
 
-		// Find the type based on the name identifier provided
-		// By getting the fields we can display the type in a form
-		editType, err := edit.FindType[any](cmdTypeName)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
+		// // This will be later passed through the command as an option/sub-command or something
+		// const cmdTypeName = "user"
 
-		fields, err := edit.TypeFields(editType)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
+		// // Query for all users (could provide pagination in query params if we wanted to)
+		// listResp := api.ListResponse[any]{}
+		// flopshotClient.QueryData(cmdTypeName, &listResp, []api.QueryParams{})
+		// fmt.Println(listResp)
 
-		for _, f := range fields {
-			fmt.Println(f)
-		}
+		// // Find the type based on the name identifier provided
+		// // By getting the fields we can display the type in a form
+		// editType, err := edit.FindType[any](cmdTypeName)
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	return
+		// }
 
-		// This will actually write the data correctly
-		// flopshotClient.WriteData("user", &editType)
+		// fields, err := edit.TypeFields(editType)
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	return
+		// }
+
+		// for _, f := range fields {
+		// 	fmt.Println(f)
+		// }
+
+		// // This will actually write the data correctly
+		// // flopshotClient.WriteData("user", &editType)
 	},
 }
 
