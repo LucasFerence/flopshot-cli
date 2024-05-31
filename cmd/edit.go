@@ -83,8 +83,51 @@ var editCmd = &cobra.Command{
 			Items: labels,
 		}
 		promptPos, _, _ = prompt.Run()
-		fmt.Println(*queryObjects[promptPos])
+
+		selectedObj := queryObjects[promptPos]
+
+		renderObject(selectedObj)
 	},
+}
+
+func renderObject(obj *edit.EditType) {
+	objFields, _ := edit.TypeFields(obj)
+
+	renderEditFields(obj, objFields)
+}
+
+func renderEditFields(obj *edit.EditType, fields []edit.Field) {
+
+	// Select a field to modify
+	promptSelect := promptui.Select{
+		Label: "Select Field",
+		Items: fields,
+	}
+
+	promptPos, _, err := promptSelect.Run()
+
+	// It will likely be an error if they ctrl-c
+	if err != nil {
+		return
+	}
+
+	selectedField := &fields[promptPos]
+
+	prompt := promptui.Prompt{
+		Label: selectedField.Name,
+		Default: selectedField.Value.String(),
+		AllowEdit: true,
+	}
+
+	val, err := prompt.Run()
+	if err != nil {
+		return
+	}
+
+	edit.UpdateField(obj, selectedField, val)
+
+	// Recurse to update another field if desired
+	renderEditFields(obj, fields)
 }
 
 func init() {

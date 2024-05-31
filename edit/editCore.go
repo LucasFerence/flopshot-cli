@@ -53,7 +53,9 @@ func RegisterType(name string, editType EditType) {
 }
 
 type Field struct {
-	Name, Type string
+	Name string
+	Type reflect.Type
+	Value reflect.Value
 }
 
 func TypeFields(t *EditType) ([]Field, error) {
@@ -67,13 +69,38 @@ func TypeFields(t *EditType) ([]Field, error) {
 	reflectFields := reflect.VisibleFields(tType)
 	fields := []Field{}
 
+	// Based on stackoverflow post here:
+	// https://stackoverflow.com/questions/63421976/panic-reflect-call-of-reflect-value-fieldbyname-on-interface-value
+
+	// Get value of provided object
+	tObjVal := reflect.Indirect(reflect.ValueOf(t).Elem().Elem())
+
 	for _, rf := range reflectFields {
 
 		fields = append(fields, Field{
 			Name: rf.Name,
-			Type: rf.Type.Name(),
+			Type: rf.Type,
+			Value: tObjVal.FieldByName(rf.Name),
 		})
 	}
 
 	return fields, nil
+}
+
+func UpdateField(t *EditType, field *Field, val any) {
+
+	if !reflect.TypeOf(val).AssignableTo(field.Type) {
+		return
+	}
+
+	newValue := reflect.ValueOf(val)
+
+	tObjVal := reflect.ValueOf(t).Elem()
+	tmp := reflect.New(tObjVal.Elem().Type()).Elem()
+
+	tmp.Set(tObjVal.Elem())
+	tmp.FieldByName(field.Name).Set(newValue)
+
+	tObjVal.Set(tmp)
+	field.Value = newValue
 }
