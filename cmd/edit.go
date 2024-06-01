@@ -5,7 +5,6 @@ import (
 
 	"flopshot.io/dev/cli/api"
 	"flopshot.io/dev/cli/edit"
-	"github.com/manifoldco/promptui"
 	"github.com/charmbracelet/huh"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
@@ -28,36 +27,26 @@ var editCmd = &cobra.Command{
 		// Get all the supported types
 		allTypes := edit.AllTypes()
 
-		// Format all types
-		allTypesFormatted := make([]string, len(allTypes))
+		// Convert all types to options
+		selectOptions := make([]huh.Option[string], len(allTypes))
 		caser := cases.Title(language.English)
 		for i, v := range allTypes {
-			allTypesFormatted[i] = caser.String(v)
+			selectOptions[i] = huh.NewOption(caser.String(v), v)
 		}
 
-		p := huh.NewSelect[string]().
+		selectVal := ""
+		err := huh.NewSelect[string]().
 			Title("Select Type").
-			Options(huh.NewOptions(allTypesFormatted...)...)
+			Options(selectOptions...).
+			Value(&selectVal).
+			Run()
 
-		p.Run()
-
-		// Generate a prompt for displayng types
-		prompt := promptui.Select{
-			Label: "Select Type",
-			Items: allTypesFormatted,
-		}
-
-		promptPos, _, err := prompt.Run()
 		if err != nil {
-			fmt.Println(err)
 			return
 		}
 
-		// Get the raw selected type based on positioning of arguments
-		selection := allTypes[promptPos]
-
 		resp := api.ListResponse[any]{}
-		err = flopshotClient.QueryData(selection, &resp, []api.QueryParams{})
+		err = flopshotClient.QueryData(selectVal, &resp, []api.QueryParams{})
 
 		if err != nil {
 			fmt.Println(err)
@@ -70,81 +59,77 @@ var editCmd = &cobra.Command{
 			return
 		}
 
-		labels := make([]string, len(resp.Items))
-		queryObjects := make([]*edit.EditType, len(resp.Items))
+		editObj, _ := edit.GetType[edit.EditType](selectVal)
+		selectObjOpts := make([]huh.Option[*edit.EditType], len(resp.Items))
 
 		// At this point we know there are items to render
 		for i, t := range resp.Items {
 
-			editType, _ := edit.GetType[edit.EditType](selection)
-
 			// Copy values from the type returned into the edit type
-			mapstructure.Decode(t, editType)
+			mapstructure.Decode(t, editObj)
 
-			labels[i] = (*editType).Label()
-			queryObjects[i] = editType
+			selectObjOpts[i] = huh.NewOption((*editObj).Label(), editObj)
 		}
 
-		prompt = promptui.Select{
-			Label: "Select Item",
-			Items: labels,
+		err = huh.NewSelect[*edit.EditType]().
+			Title("Select Item").
+			Options(selectObjOpts...).
+			Value(&editObj).
+			Run()
+
+		if err != nil {
+			fmt.Println(err)
+			return
 		}
-		promptPos, _, _ = prompt.Run()
 
-		selectedObj := queryObjects[promptPos]
-
-		renderObject(selectedObj)
+		shouldWrite := renderObject(editObj)
+		if shouldWrite {
+			flopshotClient.WriteData(selectVal, editObj)
+		}
 	},
 }
 
-func renderObject(obj *edit.EditType) {
+func renderObject(obj *edit.EditType) bool {
 	objFields, _ := edit.TypeFields(obj)
 
-	renderEditFields(obj, objFields)
+	return renderEditFields(obj, objFields)
 }
 
-func renderEditFields(obj *edit.EditType, fields []edit.Field) {
+func renderEditFields(obj *edit.EditType, fields []edit.Field) bool {
 
-	// Format the fields
-	formattedFields := make([]string, len(fields))
+	textForms := make([]huh.Field, len(fields))
+	fieldValues := make([]string, len(fields))
 	for i, v := range fields {
-		formattedFields[i] = fmt.Sprintf("%s (%s): %s", v.Name, v.Type, v.Value)
+
+		fieldValues[i] = v.Value.String()
+
+		textForms[i] = huh.NewText().
+			Title(fmt.Sprintf("%s (%s)", v.Name, v.Type)).
+			Value(&fieldValues[i]).
+			Lines(2)
 	}
 
-	// Append
-	formattedFields = append([]string{"[BACK]"}, formattedFields...)
-	formattedFields = append([]string{"[BACK]"}, formattedFields...)
+	shouldWrite := false
+	_ = huh.NewForm(
+		huh.NewGroup(
+			textForms...,
+		),
+		huh.NewGroup(
+			huh.NewConfirm().
+				Title(fmt.Sprintf("Write: %s?", (*obj).Label())).
+				Value(&shouldWrite),
+		),
+	).Run()
 
-	// Select a field to modify
-	promptSelect := promptui.Select{
-		Label: fmt.Sprintf("Edit: %s", (*obj).Label()),
-		Items: formattedFields,
+	if shouldWrite {
+
+		for i := 0; i < len(fields); i++ {
+			// todo: this can be optimized to update all in one batch
+			edit.UpdateField(obj, &fields[i], fieldValues[i])
+		}
 	}
 
-	promptPos, _, err := promptSelect.Run()
-
-	// It will likely be an error if they ctrl-c
-	if err != nil {
-		return
-	}
-
-	selectedField := &fields[promptPos]
-
-	prompt := promptui.Prompt{
-		Label: selectedField.Name,
-		Default: selectedField.Value.String(),
-		AllowEdit: true,
-	}
-
-	val, err := prompt.Run()
-	if err != nil {
-		return
-	}
-
-	edit.UpdateField(obj, selectedField, val)
-
-	// Recurse to update another field if desired
-	renderEditFields(obj, fields)
+	return shouldWrite
 }
 
 func init() {

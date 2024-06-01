@@ -53,8 +53,8 @@ func RegisterType(name string, editType EditType) {
 }
 
 type Field struct {
-	Name string
-	Type reflect.Type
+	Name  string
+	Type  reflect.Type
 	Value reflect.Value
 }
 
@@ -78,8 +78,8 @@ func TypeFields(t *EditType) ([]Field, error) {
 	for _, rf := range reflectFields {
 
 		fields = append(fields, Field{
-			Name: rf.Name,
-			Type: rf.Type,
+			Name:  rf.Name,
+			Type:  rf.Type,
 			Value: tObjVal.FieldByName(rf.Name),
 		})
 	}
