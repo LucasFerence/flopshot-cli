@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -9,8 +10,9 @@ import (
 
 	"flopshot.io/dev/cli/api"
 	"flopshot.io/dev/cli/edit"
+	"github.com/charmbracelet/huh"
+	"github.com/charmbracelet/huh/spinner"
 	"github.com/icza/gox/osx"
-	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
 
@@ -37,56 +39,78 @@ var loginCmd = &cobra.Command{
 			return
 		}
 
-		// Open URL in default browser
-		osx.OpenDefault(deviceCodeRespose.VerificationUriComplete)
+		shouldOpenBrowser := true
+		err = huh.NewConfirm().
+			Title("Open Browser?").
+			Value(&shouldOpenBrowser).
+			Run()
 
-		fmt.Printf("Code: %s\n", deviceCodeRespose.UserCode)
-		fmt.Println("Waiting for authorization...")
-
-		tokenResponse := tokenResponse{}
-
-		// Sleep for 5 seconds initially, then check for a token response
-		// every 5 seconds to see if they're authorized
-		time.Sleep(5 * time.Second)
-		for i := 0; i < 15; i++ {
-
-			code, err := execTokenRequest(deviceCodeRespose.DeviceCode, &tokenResponse)
-			fmt.Println(code)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-
-			if code == 200 {
-				break
-			}
-
-			// Sleep for one second before trying to get a token
-			time.Sleep(5 * time.Second)
-		}
-
-		if tokenResponse.AccessToken == "" {
-			fmt.Println("Login timed out! Please try again.")
+		if err != nil || !shouldOpenBrowser {
 			return
 		}
 
-		fmt.Println("Authorized.")
+		// Open URL in default browser
+		osx.OpenDefault(deviceCodeRespose.VerificationUriComplete)
+
+		tokenResponse := tokenResponse{}
+		awaitTokenAction := func() {
+
+			// Sleep for 5 seconds initially, then check for a token response
+			// every 5 seconds to see if they're authorized
+			time.Sleep(5 * time.Second)
+			for i := 0; i < 15; i++ {
+
+				code, err := execTokenRequest(deviceCodeRespose.DeviceCode, &tokenResponse)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+
+				if code == 200 {
+					break
+				}
+
+				// Sleep for one second before trying to get a token
+				time.Sleep(5 * time.Second)
+			}
+		}
+
+		err = spinner.New().
+			Title(fmt.Sprintf("Confirm Code: %s", deviceCodeRespose.UserCode)).
+			Action(awaitTokenAction).
+			Run()
+
+		if err != nil || tokenResponse.AccessToken == "" {
+			fmt.Println("Login failed. Please try again")
+			return
+		}
 
 		flopshotClient.InitAuth(tokenResponse.AccessToken)
 
-		// Prompt for email
-		prompt := promptui.Prompt{
-			Label: "Email",
-		}
+		email := ""
+		err = huh.NewInput().
+			Value(&email).
+			Title("Enter email").
+			Description("Check for existing user").
+			Validate(func(s string) error {
+				if len(s) == 0 {
+					return errors.New("Must input an email!")
+				}
 
-		result, err := prompt.Run()
+				return nil
+			}).
+			Run()
+
+		if err != nil {
+			return
+		}
 
 		// Query for existing users
 		userResp := api.ListResponse[edit.User]{}
 		err = flopshotClient.QueryData(
 			edit.UserType,
 			&userResp,
-			[]api.QueryParams{{K: "email", V: result}},
+			[]api.QueryParams{{K: "email", V: email}},
 		)
 
 		if len(userResp.Items) > 0 {
@@ -95,10 +119,8 @@ var loginCmd = &cobra.Command{
 
 			fmt.Println("No user. Creating one automatically...")
 
-			newIdResp := flopshotClient.RegisterIdReq(edit.UserType)
 			newUser := edit.User{
-				Id:    newIdResp.Id,
-				Email: result,
+				Email: email,
 			}
 			flopshotClient.WriteData(edit.UserType, newUser)
 		}

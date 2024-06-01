@@ -6,6 +6,7 @@ import (
 	"flopshot.io/dev/cli/api"
 	"flopshot.io/dev/cli/edit"
 	"github.com/manifoldco/promptui"
+	"github.com/charmbracelet/huh"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"golang.org/x/text/cases"
@@ -33,6 +34,12 @@ var editCmd = &cobra.Command{
 		for i, v := range allTypes {
 			allTypesFormatted[i] = caser.String(v)
 		}
+
+		p := huh.NewSelect[string]().
+			Title("Select Type").
+			Options(huh.NewOptions(allTypesFormatted...)...)
+
+		p.Run()
 
 		// Generate a prompt for displayng types
 		prompt := promptui.Select{
@@ -98,10 +105,20 @@ func renderObject(obj *edit.EditType) {
 
 func renderEditFields(obj *edit.EditType, fields []edit.Field) {
 
+	// Format the fields
+	formattedFields := make([]string, len(fields))
+	for i, v := range fields {
+		formattedFields[i] = fmt.Sprintf("%s (%s): %s", v.Name, v.Type, v.Value)
+	}
+
+	// Append
+	formattedFields = append([]string{"[BACK]"}, formattedFields...)
+	formattedFields = append([]string{"[BACK]"}, formattedFields...)
+
 	// Select a field to modify
 	promptSelect := promptui.Select{
-		Label: "Select Field",
-		Items: fields,
+		Label: fmt.Sprintf("Edit: %s", (*obj).Label()),
+		Items: formattedFields,
 	}
 
 	promptPos, _, err := promptSelect.Run()
