@@ -35,51 +35,64 @@ var editCmd = &cobra.Command{
 		}
 
 		selectVal := ""
-		err := huh.NewSelect[string]().
-			Title("Select Type").
-			Options(selectOptions...).
-			Value(&selectVal).
-			Run()
-
-		if err != nil {
-			return
-		}
-
-		resp := api.ListResponse[any]{}
-		err = flopshotClient.QueryData(selectVal, &resp, []api.QueryParams{})
-
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		// Check to make sure items were returned
-		if resp.Items == nil || len(resp.Items) == 0 {
-			fmt.Println("No items found!")
-			return
-		}
+		shouldSearch := true
+		err := huh.NewForm(
+			huh.NewGroup(
+				huh.NewConfirm().
+					Affirmative("Search").
+					Negative("Create").
+					Value(&shouldSearch),
+			),
+			huh.NewGroup(
+				huh.NewSelect[string]().
+					Title("Select Type").
+					Options(selectOptions...).
+					Value(&selectVal),
+			),
+		).Run()
 
 		editObj, _ := edit.GetType[edit.EditType](selectVal)
-		selectObjOpts := make([]huh.Option[*edit.EditType], len(resp.Items))
 
-		// At this point we know there are items to render
-		for i, t := range resp.Items {
+		if shouldSearch {
 
-			// Copy values from the type returned into the edit type
-			mapstructure.Decode(t, editObj)
-
-			selectObjOpts[i] = huh.NewOption((*editObj).Label(), editObj)
 		}
 
-		err = huh.NewSelect[*edit.EditType]().
-			Title("Select Item").
-			Options(selectObjOpts...).
-			Value(&editObj).
-			Run()
+		if shouldSearch {
+			resp := api.ListResponse[any]{}
+			err = flopshotClient.QueryData(selectVal, &resp, []api.QueryParams{})
 
-		if err != nil {
-			fmt.Println(err)
-			return
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			// Check to make sure items were returned
+			if resp.Items == nil || len(resp.Items) == 0 {
+				fmt.Println("No items found!")
+				return
+			}
+
+			selectObjOpts := make([]huh.Option[*edit.EditType], len(resp.Items))
+
+			// At this point we know there are items to render
+			for i, t := range resp.Items {
+
+				// Copy values from the type returned into the edit type
+				mapstructure.Decode(t, editObj)
+
+				selectObjOpts[i] = huh.NewOption((*editObj).Label(), editObj)
+			}
+
+			err = huh.NewSelect[*edit.EditType]().
+				Title("Select Item").
+				Options(selectObjOpts...).
+				Value(&editObj).
+				Run()
+
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
 		}
 
 		shouldWrite := renderObject(editObj)
