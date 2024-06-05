@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"fmt"
+
+	"flopshot.io/dev/cli/api"
 	"github.com/spf13/cobra"
 )
 
@@ -10,43 +13,10 @@ var testCmd = &cobra.Command{
 	Short: "A brief description of your command",
 	Run: func(cmd *cobra.Command, args []string) {
 
-		// allTypes := edit.AllTypes()
-		// prompt := promptui.Select{
-		// 	Label: "Select Type",
-		// 	Items: allTypes,
-		// }
+		resp := api.ListResponse[any]{}
+		flopshotClient.QueryData("group", &resp, []api.QueryParams{})
 
-		// _, promptRes, err := prompt.Run()
-		// fmt.Println(promptRes)
-
-		// // This will be later passed through the command as an option/sub-command or something
-		// const cmdTypeName = "user"
-
-		// // Query for all users (could provide pagination in query params if we wanted to)
-		// listResp := api.ListResponse[any]{}
-		// flopshotClient.QueryData(cmdTypeName, &listResp, []api.QueryParams{})
-		// fmt.Println(listResp)
-
-		// // Find the type based on the name identifier provided
-		// // By getting the fields we can display the type in a form
-		// editType, err := edit.FindType[any](cmdTypeName)
-		// if err != nil {
-		// 	fmt.Println(err)
-		// 	return
-		// }
-
-		// fields, err := edit.TypeFields(editType)
-		// if err != nil {
-		// 	fmt.Println(err)
-		// 	return
-		// }
-
-		// for _, f := range fields {
-		// 	fmt.Println(f)
-		// }
-
-		// // This will actually write the data correctly
-		// // flopshotClient.WriteData("user", &editType)
+		fmt.Println(resp)
 	},
 }
 

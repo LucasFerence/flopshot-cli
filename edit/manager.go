@@ -1,8 +1,11 @@
 package edit
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
+	"strconv"
 )
 
 type EditType interface {
@@ -10,8 +13,27 @@ type EditType interface {
 }
 
 type ReferenceType struct {
-	Id   string `json:"_id"`
-	Type string `json:"_type"`
+	Id   string `json:"_id" mapstructure:"_id"`
+	Type string `json:"_type" mapstructure:"_type"`
+}
+
+func (rt *ReferenceType) UnmarshalJSON(data []byte) error {
+
+	var obj struct {
+		Id   string `json:"_id" mapstructure:"_id"`
+		Type string `json:"_type" mapstructure:"_type"`
+	}
+
+	if err := json.Unmarshal(data, &obj); err != nil {
+		return err
+	}
+
+	*rt = ReferenceType{
+		Id:   obj.Id,
+		Type: obj.Type,
+	}
+
+	return nil
 }
 
 var allEditTypes = make(map[string]EditType)
@@ -53,9 +75,10 @@ func RegisterType(name string, editType EditType) {
 }
 
 type Field struct {
-	Name  string
-	Type  reflect.Type
-	Value reflect.Value
+	Name    string
+	Type    reflect.Type
+	Value   reflect.Value
+	RefType string
 }
 
 func TypeFields(t *EditType) ([]Field, error) {
@@ -77,23 +100,48 @@ func TypeFields(t *EditType) ([]Field, error) {
 
 	for _, rf := range reflectFields {
 
+		isRefType := rf.Type.AssignableTo(reflect.TypeFor[ReferenceType]())
+		var refType string
+		if isRefType {
+			refType = rf.Tag.Get("editRef")
+		}
+
 		fields = append(fields, Field{
-			Name:  rf.Name,
-			Type:  rf.Type,
-			Value: tObjVal.FieldByName(rf.Name),
+			Name:    rf.Name,
+			Type:    rf.Type,
+			Value:   tObjVal.FieldByName(rf.Name),
+			RefType: refType,
 		})
 	}
 
 	return fields, nil
 }
 
-func UpdateField(t *EditType, field *Field, val any) {
+func ConvertFromStr(typ reflect.Type, val string) (reflect.Value, error) {
 
-	if !reflect.TypeOf(val).AssignableTo(field.Type) {
-		return
+	kind := typ.Kind()
+
+	switch kind {
+	case reflect.String:
+		return reflect.ValueOf(val), nil
+	case reflect.Int:
+		i, e := strconv.Atoi(val)
+		if e != nil {
+			return reflect.Value{}, nil
+		}
+		return reflect.ValueOf(i), nil
+	default:
+		return reflect.Value{}, errors.New("Unsupported type!")
 	}
+}
 
-	newValue := reflect.ValueOf(val)
+func UpdateField(t *EditType, field *Field, val string) error {
+
+	newValue, err := ConvertFromStr(field.Type, val)
+
+	if err != nil {
+		return err
+	}
 
 	tObjVal := reflect.ValueOf(t).Elem()
 	tmp := reflect.New(tObjVal.Elem().Type()).Elem()
@@ -103,4 +151,6 @@ func UpdateField(t *EditType, field *Field, val any) {
 
 	tObjVal.Set(tmp)
 	field.Value = newValue
+
+	return nil
 }

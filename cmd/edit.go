@@ -114,7 +114,11 @@ func renderEditFields(obj *edit.EditType, fields []edit.Field) bool {
 	fieldValues := make([]string, len(fields))
 	for i, v := range fields {
 
-		fieldValues[i] = v.Value.String()
+		if v.RefType != "" {
+			fieldValues[i] = fmt.Sprint(v.Value.FieldByName("Id"))
+		} else {
+			fieldValues[i] = fmt.Sprint(v.Value)
+		}
 
 		textForms[i] = huh.NewText().
 			Title(fmt.Sprintf("%s (%s)", v.Name, v.Type)).
@@ -138,7 +142,11 @@ func renderEditFields(obj *edit.EditType, fields []edit.Field) bool {
 
 		for i := 0; i < len(fields); i++ {
 			// todo: this can be optimized to update all in one batch
-			edit.UpdateField(obj, &fields[i], fieldValues[i])
+			err := edit.UpdateField(obj, &fields[i], fieldValues[i])
+			if err != nil {
+				fmt.Printf("Could not update! Invalid Field. Error: [%s]\n", err)
+				return false
+			}
 		}
 	}
 
