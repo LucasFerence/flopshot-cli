@@ -11,29 +11,6 @@ type ListResponse[T any] struct {
 	Items []T `json:"items"`
 }
 
-type RegisterIdResponse struct {
-	Id string `json:"_id"`
-}
-
-func (client *FlopshotClient) RegisterIdReq(dataType string) *RegisterIdResponse {
-
-	req, err := http.NewRequest(
-		"GET",
-		fmt.Sprintf("%s/%s/registerId", ClientUrl, dataType),
-		nil,
-	)
-
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
-
-	response := RegisterIdResponse{}
-	client.ExecR(req, &response)
-
-	return &response
-}
-
 type QueryParams struct {
 	K, V string
 }

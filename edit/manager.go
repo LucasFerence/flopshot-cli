@@ -132,7 +132,7 @@ func ConvertFromStr(field *Field, val string) (reflect.Value, error) {
 	case reflect.TypeFor[ReferenceType]().Kind():
 		// For a reference type, we are assuming the value is a valid ID
 		refT := ReferenceType{
-			Id: val,
+			Id:   val,
 			Type: field.RefType,
 		}
 
