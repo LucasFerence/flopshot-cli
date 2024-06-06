@@ -3,7 +3,6 @@ package edit
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"reflect"
 	"strconv"
 )
@@ -117,9 +116,9 @@ func TypeFields(t *EditType) ([]Field, error) {
 	return fields, nil
 }
 
-func ConvertFromStr(typ reflect.Type, val string) (reflect.Value, error) {
+func ConvertFromStr(field *Field, val string) (reflect.Value, error) {
 
-	kind := typ.Kind()
+	kind := field.Type.Kind()
 
 	switch kind {
 	case reflect.String:
@@ -130,6 +129,14 @@ func ConvertFromStr(typ reflect.Type, val string) (reflect.Value, error) {
 			return reflect.Value{}, nil
 		}
 		return reflect.ValueOf(i), nil
+	case reflect.TypeFor[ReferenceType]().Kind():
+		// For a reference type, we are assuming the value is a valid ID
+		refT := ReferenceType{
+			Id: val,
+			Type: field.RefType,
+		}
+
+		return reflect.ValueOf(refT), nil
 	default:
 		return reflect.Value{}, errors.New("Unsupported type!")
 	}
@@ -137,7 +144,7 @@ func ConvertFromStr(typ reflect.Type, val string) (reflect.Value, error) {
 
 func UpdateField(t *EditType, field *Field, val string) error {
 
-	newValue, err := ConvertFromStr(field.Type, val)
+	newValue, err := ConvertFromStr(field, val)
 
 	if err != nil {
 		return err

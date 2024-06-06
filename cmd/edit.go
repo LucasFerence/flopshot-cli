@@ -15,7 +15,7 @@ import (
 // editCmd represents the edit command
 var editCmd = &cobra.Command{
 	Use:   "edit",
-	Short: "A brief description of your command",
+	Short: "Create or edit data",
 	Run: func(cmd *cobra.Command, args []string) {
 
 		loggedIn, _ := flopshotClient.IsAuthenticated()
@@ -52,10 +52,6 @@ var editCmd = &cobra.Command{
 		).Run()
 
 		editObj, _ := edit.GetType[edit.EditType](selectVal)
-
-		if shouldSearch {
-
-		}
 
 		if shouldSearch {
 			resp := api.ListResponse[any]{}
@@ -144,7 +140,7 @@ func renderEditFields(obj *edit.EditType, fields []edit.Field) bool {
 			// todo: this can be optimized to update all in one batch
 			err := edit.UpdateField(obj, &fields[i], fieldValues[i])
 			if err != nil {
-				fmt.Printf("Could not update! Invalid Field. Error: [%s]\n", err)
+				fmt.Printf("Could not update field! Error: [%s]\n", err)
 				return false
 			}
 		}
